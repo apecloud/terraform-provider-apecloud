@@ -175,7 +175,7 @@ func (r *ClusterResource) Read(ctx context.Context, req resource.ReadRequest, re
 		if diags.Contains(utils.NewNotFoundErrorDiagnostic(data.Name.ValueString(), data.OrgName.ValueString())) {
 			resp.State.RemoveResource(ctx)
 		}
-		resp.Diagnostics.Append(diags...)
+		resp.Diagnostics.Append(diag.NewWarningDiagnostic("cluster not found", fmt.Sprintf("cluster %s in org %s not found", data.Name.ValueString(), data.OrgName.ValueString())))
 		return
 	}
 	// Save updated data into Terraform state
@@ -312,7 +312,7 @@ func (r *ClusterResource) Update(ctx context.Context, req resource.UpdateRequest
 		resp.Diagnostics.Append(diags...)
 	}()
 
-	body, updateDiags := clusterResourceToClusterUpdate(ctx, data)
+	body, updateDiags := clusterResourceToClusterUpdate(ctx, &data)
 	diags.Append(updateDiags...)
 	if diags.HasError() {
 		return
@@ -507,29 +507,16 @@ func clusterResourceToClusterCreate(ctx context.Context, data *mytypes.ClustersR
 	}
 
 	if !data.Extra.IsNull() && !data.Extra.IsUnknown() {
-		// The most reliable way to perform a deep conversion of arbitrary dynamic
-		// terraform types to pure Go maps without leaving framework types (like basetypes.StringValue)
-		// inside the nested structures is to round-trip it via JSON.
-		// Since we need a map[string]interface{} for the API client, this works perfectly.
-		b, err := json.Marshal(data.Extra)
-		if err != nil {
-			diags.AddError(
-				"Invalid Extra Configuration",
-				fmt.Sprintf("Failed to marshal extra configuration to JSON: %s", err),
-			)
-			return nil, diags
+		// In Terraform Plugin Framework, types.Dynamic holds arbitrary underlying types
+		// (e.g. types.Map, types.Object). However, basetypes.ObjectValue doesn't
+		// implement json.Marshaler natively for its internal attributes.
+		// We need to recursively extract the values into pure Go types.
+		extraMap := utils.ExtractAttrValue(ctx, data.Extra)
+		if extraMap != nil {
+			if m, ok := extraMap.(map[string]interface{}); ok && len(m) > 0 {
+				body.Extra = m
+			}
 		}
-
-		var extraMap map[string]interface{}
-		if err := json.Unmarshal(b, &extraMap); err != nil {
-			diags.AddError(
-				"Invalid Extra Configuration",
-				fmt.Sprintf("Failed to unmarshal extra configuration from JSON: %s", err),
-			)
-			return nil, diags
-		}
-
-		body.Extra = extraMap
 	}
 
 	if !data.NodeGroup.IsNull() && !data.NodeGroup.IsUnknown() {
@@ -553,12 +540,17 @@ func clusterResourceToClusterCreate(ctx context.Context, data *mytypes.ClustersR
 		}
 	}
 	var apiParamTpls []admin.ParamTplsItem
-	for _, paramTpl := range paramTpls {
-		apiParamTpls = append(apiParamTpls, admin.ParamTplsItem{
-			Component:         paramTpl.Component.ValueStringPointer(),
-			ParamTplName:      paramTpl.ParamTplName.ValueStringPointer(),
-			ParamTplPartition: admin.ParameterTemplatePartition(paramTpl.ParamTplPartition.ValueString()).Ptr(),
-		})
+	if !data.ParamTpls.IsNull() && !data.ParamTpls.IsUnknown() {
+		for _, paramTpl := range paramTpls {
+			apiParamTpls = append(apiParamTpls, admin.ParamTplsItem{
+				Component:         paramTpl.Component.ValueStringPointer(),
+				ParamTplName:      paramTpl.ParamTplName.ValueStringPointer(),
+				ParamTplPartition: admin.ParameterTemplatePartition(paramTpl.ParamTplPartition.ValueString()).Ptr(),
+			})
+		}
+	} else {
+		// explicitly use an empty slice rather than nil so JSON marshal generates `[]`
+		apiParamTpls = make([]admin.ParamTplsItem, 0)
 	}
 
 	body.ParamTpls = apiParamTpls
@@ -591,16 +583,16 @@ func clusterResourceToClusterCreate(ctx context.Context, data *mytypes.ClustersR
 				diags.Append(volume.IoLimits.As(ctx, &ioLimits, basetypes.ObjectAsOptions{})...)
 				if !diags.HasError() {
 					v.IoLimits = &admin.IoQuantity{}
-					if !ioLimits.ReadIops.IsNull() {
+					if !ioLimits.ReadIops.IsNull() && !ioLimits.ReadIops.IsUnknown() {
 						v.IoLimits.ReadIops.Set(ioLimits.ReadIops.ValueInt64Pointer())
 					}
-					if !ioLimits.WriteIops.IsNull() {
+					if !ioLimits.WriteIops.IsNull() && !ioLimits.WriteIops.IsUnknown() {
 						v.IoLimits.WriteIops.Set(ioLimits.WriteIops.ValueInt64Pointer())
 					}
-					if !ioLimits.ReadBps.IsNull() {
+					if !ioLimits.ReadBps.IsNull() && !ioLimits.ReadBps.IsUnknown() {
 						v.IoLimits.ReadBps.Set(ioLimits.ReadBps.ValueInt64Pointer())
 					}
-					if !ioLimits.WriteBps.IsNull() {
+					if !ioLimits.WriteBps.IsNull() && !ioLimits.WriteBps.IsUnknown() {
 						v.IoLimits.WriteBps.Set(ioLimits.WriteBps.ValueInt64Pointer())
 					}
 				}
@@ -611,16 +603,16 @@ func clusterResourceToClusterCreate(ctx context.Context, data *mytypes.ClustersR
 				diags.Append(volume.IoReserves.As(ctx, &ioReserves, basetypes.ObjectAsOptions{})...)
 				if !diags.HasError() {
 					v.IoReserves = &admin.IoQuantity{}
-					if !ioReserves.ReadIops.IsNull() {
+					if !ioReserves.ReadIops.IsNull() && !ioReserves.ReadIops.IsUnknown() {
 						v.IoReserves.ReadIops.Set(ioReserves.ReadIops.ValueInt64Pointer())
 					}
-					if !ioReserves.WriteIops.IsNull() {
+					if !ioReserves.WriteIops.IsNull() && !ioReserves.WriteIops.IsUnknown() {
 						v.IoReserves.WriteIops.Set(ioReserves.WriteIops.ValueInt64Pointer())
 					}
-					if !ioReserves.ReadBps.IsNull() {
+					if !ioReserves.ReadBps.IsNull() && !ioReserves.ReadBps.IsUnknown() {
 						v.IoReserves.ReadBps.Set(ioReserves.ReadBps.ValueInt64Pointer())
 					}
-					if !ioReserves.WriteBps.IsNull() {
+					if !ioReserves.WriteBps.IsNull() && !ioReserves.WriteBps.IsUnknown() {
 						v.IoReserves.WriteBps.Set(ioReserves.WriteBps.ValueInt64Pointer())
 					}
 				}
@@ -770,10 +762,10 @@ func clusterResourceToClusterCreate(ctx context.Context, data *mytypes.ClustersR
 				// the crop expression for incremental backup schedule
 				IncrementalCronExpression: backupModel.IncrementalCronExpression.ValueStringPointer(),
 			}
-			if !backupModel.RetentionPolicy.IsNull() {
+			if !backupModel.RetentionPolicy.IsNull() && !backupModel.RetentionPolicy.IsUnknown() {
 				backup.RetentionPolicy = admin.BackupRetentionPolicy(backupModel.RetentionPolicy.ValueString()).Ptr()
 			}
-			if !backupModel.SnapshotVolumes.IsNull() {
+			if !backupModel.SnapshotVolumes.IsNull() && !backupModel.SnapshotVolumes.IsUnknown() {
 				backup.SnapshotVolumes.Set(backupModel.SnapshotVolumes.ValueBoolPointer())
 			}
 			body.Backup = backup
@@ -836,7 +828,7 @@ func clusterResourceToClusterCreate(ctx context.Context, data *mytypes.ClustersR
 }
 
 // clusterResourceToClusterUpdate converts cluster update body from resource model
-func clusterResourceToClusterUpdate(ctx context.Context, data mytypes.ClustersResourceModel) (*admin.ClusterUpdate, diag.Diagnostics) {
+func clusterResourceToClusterUpdate(ctx context.Context, data *mytypes.ClustersResourceModel) (*admin.ClusterUpdate, diag.Diagnostics) {
 	var (
 		update admin.ClusterUpdate
 		diags  diag.Diagnostics
@@ -935,11 +927,25 @@ func (r *ClusterResource) doVscale(oldComponents []admin.ComponentItem, data *my
 func (r *ClusterResource) doHscale(oldComponents []admin.ComponentItem, data *mytypes.ClustersResourceModel, update *mytypes.ComponentsResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	if !slices.ContainsFunc(oldComponents, func(c admin.ComponentItem) bool {
-		return pointer.ValueOf(c.Component) == update.Component.ValueString() &&
-			(pointer.ValueOf(c.CompNum) != int32(update.CompNum.ValueInt64()) && update.CompNum.ValueInt64() != 0 ||
-				pointer.ValueOf(c.Replicas) != int32(update.Replicas.ValueInt64()) && update.Replicas.ValueInt64() != 0)
-	}) {
+	// valuePrecheck
+	shardPrecheck := func(newVal types.Int64) bool {
+		return slices.ContainsFunc(oldComponents, func(c admin.ComponentItem) bool {
+			return pointer.ValueOf(c.Component) == update.Component.ValueString() &&
+				(pointer.ValueOf(c.CompNum) != int32(newVal.ValueInt64()) && newVal.ValueInt64() != 0)
+		})
+	}
+
+	replicasPrecheck := func(newVal types.Int64) bool {
+		return slices.ContainsFunc(oldComponents, func(c admin.ComponentItem) bool {
+			return pointer.ValueOf(c.Component) == update.Component.ValueString() &&
+				(pointer.ValueOf(c.Replicas) != int32(newVal.ValueInt64()) && newVal.ValueInt64() != 0)
+		})
+	}
+
+	shardChanged := !update.CompNum.IsNull() && !update.CompNum.IsUnknown() && shardPrecheck(update.CompNum)
+	replicasChanged := !update.Replicas.IsNull() && !update.Replicas.IsUnknown() && replicasPrecheck(update.Replicas)
+
+	if !shardChanged && !replicasChanged {
 		return diags
 	}
 
@@ -947,97 +953,107 @@ func (r *ClusterResource) doHscale(oldComponents []admin.ComponentItem, data *my
 	var apiResp *http.Response
 	var err error
 
+	// Helper to get target backup
+	getTargetBackup := func(backups []admin.Backup) string {
+		if len(backups) == 0 {
+			return ""
+		}
+		sort.Slice(backups, func(i, j int) bool {
+			iCompleted := string(backups[i].Status) == string(admin.BackupStatusCompleted)
+			jCompleted := string(backups[j].Status) == string(admin.BackupStatusCompleted)
+
+			if iCompleted != jCompleted {
+				return iCompleted
+			}
+			timeI := pointer.ValueOf(backups[i].CompletionTimestamp.Get())
+			timeJ := pointer.ValueOf(backups[j].CompletionTimestamp.Get())
+			return timeI.After(timeJ)
+		})
+
+		if string(backups[0].Status) == string(admin.BackupStatusCompleted) {
+			return backups[0].Name
+		}
+		return ""
+	}
+
+	// Helper to fetch backups depending on client
+	var listResp *http.Response
+	var listErr error
+	var adminBackups []admin.Backup
+
 	if r.client.IsAdminClient() {
-		backups, listResp, listErr := admin.NewBackupApi(r.client.AdminClient()).ListBackups(
+		backups, resp, err := admin.NewBackupApi(r.client.AdminClient()).ListBackups(
 			r.client.AdminCtx(),
-			admin.ListBackupsOptionalParameters{
-				ClusterId: pointer.To(data.ID.ValueString()),
-			},
+			admin.ListBackupsOptionalParameters{ClusterId: pointer.To(data.ID.ValueString())},
 		)
-		if listErr != nil || !utils.IsHTTPSuccess(listResp) {
-			errDetail := utils.GetRespErrorDetail(listResp)
-			diags.AddWarning("List backups By Cluster failed during update cluster API, try to HScale without backup", errDetail)
-		} else if len(backups.Items) > 0 {
-			sort.Slice(backups.Items, func(i, j int) bool {
-				iCompleted := string(backups.Items[i].Status) == string(admin.BackupStatusCompleted)
-				jCompleted := string(backups.Items[j].Status) == string(admin.BackupStatusCompleted)
-
-				if iCompleted != jCompleted {
-					return iCompleted
-				}
-				timeI := pointer.ValueOf(backups.Items[i].CompletionTimestamp.Get())
-				timeJ := pointer.ValueOf(backups.Items[j].CompletionTimestamp.Get())
-				return timeI.After(timeJ)
-			})
-
-			if string(backups.Items[0].Status) == string(admin.BackupStatusCompleted) {
-				targetBackup = backups.Items[0].Name
-			}
+		listResp, listErr = resp, err
+		if err == nil {
+			adminBackups = backups.Items
 		}
-
-		opsBody := admin.OpsHScale{Component: update.Component.ValueString()}
-		if !update.CompNum.IsNull() && update.Replicas.IsUnknown() {
-			opsBody.Shards.Set(pointer.Int32(int32(update.CompNum.ValueInt64())))
-		}
-		if !update.Replicas.IsNull() && !update.Replicas.IsUnknown() {
-			opsBody.Replicas.Set(pointer.Int32(int32(update.Replicas.ValueInt64())))
-		}
-		if targetBackup != "" {
-			opsBody.BackupName.Set(pointer.String(targetBackup))
-		}
-
-		_, apiResp, err = admin.NewOpsrequestApi(r.client.AdminClient()).HorizontalScaleCluster(
-			r.client.AdminCtx(),
-			data.OrgName.ValueString(),
-			data.Name.ValueString(),
-			opsBody,
-		)
 	} else {
-		backups, listResp, listErr := kbcloud.NewBackupApi(r.client.Client()).ListBackups(
+		backups, resp, err := kbcloud.NewBackupApi(r.client.Client()).ListBackups(
 			r.client.Ctx(),
 			data.OrgName.ValueString(),
-			kbcloud.ListBackupsOptionalParameters{
-				ClusterId: pointer.To(data.ID.ValueString()),
-			},
+			kbcloud.ListBackupsOptionalParameters{ClusterId: pointer.To(data.ID.ValueString())},
 		)
-		if listErr != nil || !utils.IsHTTPSuccess(listResp) {
-			errDetail := utils.GetRespErrorDetail(listResp)
-			diags.AddWarning("List backups By Cluster failed during update cluster API, try to HScale without backup", errDetail)
-		} else if len(backups.Items) > 0 {
-			sort.Slice(backups.Items, func(i, j int) bool {
-				iCompleted := string(backups.Items[i].Status) == string(admin.BackupStatusCompleted)
-				jCompleted := string(backups.Items[j].Status) == string(admin.BackupStatusCompleted)
+		listResp, listErr = resp, err
+		if err == nil {
+			b, _ := json.Marshal(backups.Items)
+			_ = json.Unmarshal(b, &adminBackups)
+		}
+	}
 
-				if iCompleted != jCompleted {
-					return iCompleted
-				}
-				timeI := pointer.ValueOf(backups.Items[i].CompletionTimestamp.Get())
-				timeJ := pointer.ValueOf(backups.Items[j].CompletionTimestamp.Get())
-				return timeI.After(timeJ)
-			})
+	if listErr != nil || !utils.IsHTTPSuccess(listResp) {
+		errDetail := utils.GetRespErrorDetail(listResp)
+		diags.AddWarning("List backups By Cluster failed during update cluster API, try to HScale without backup", errDetail)
+	} else {
+		targetBackup = getTargetBackup(adminBackups)
+	}
 
-			if string(backups.Items[0].Status) == string(admin.BackupStatusCompleted) {
-				targetBackup = backups.Items[0].Name
-			}
+	// Helper to execute scale operation based on client type
+	executeScale := func(opsBody admin.OpsHScale) (*http.Response, error) {
+		if r.client.IsAdminClient() {
+			_, resp, err := admin.NewOpsrequestApi(r.client.AdminClient()).HorizontalScaleCluster(
+				r.client.AdminCtx(), data.OrgName.ValueString(), data.Name.ValueString(), opsBody)
+			return resp, err
 		}
 
-		opsBody := kbcloud.OpsHScale{Component: update.Component.ValueString()}
-		if !update.CompNum.IsNull() && update.Replicas.IsUnknown() {
+		var kbBody kbcloud.OpsHScale
+		b, _ := json.Marshal(opsBody)
+		_ = json.Unmarshal(b, &kbBody)
+		_, resp, err := kbcloud.NewOpsrequestApi(r.client.Client()).HorizontalScaleCluster(
+			r.client.Ctx(), data.OrgName.ValueString(), data.Name.ValueString(), kbBody)
+		return resp, err
+	}
+
+	opsBody := admin.OpsHScale{Component: update.Component.ValueString()}
+	if targetBackup != "" {
+		opsBody.BackupName.Set(pointer.String(targetBackup))
+	}
+
+	if shardChanged && replicasChanged {
+		// Shard first
+		opsBodyShard := opsBody
+		opsBodyShard.Shards.Set(pointer.Int32(int32(update.CompNum.ValueInt64())))
+		apiResp, err = executeScale(opsBodyShard)
+		if err != nil {
+			errDetail := utils.GetRespErrorDetail(apiResp)
+			diags.AddError("update cluster failed when horizontal scale shards", errDetail)
+			return diags
+		}
+
+		// Replicas second
+		opsBodyReplicas := opsBody
+		opsBodyReplicas.Replicas.Set(pointer.Int32(int32(update.Replicas.ValueInt64())))
+		apiResp, err = executeScale(opsBodyReplicas)
+	} else {
+		if shardChanged {
 			opsBody.Shards.Set(pointer.Int32(int32(update.CompNum.ValueInt64())))
 		}
-		if !update.Replicas.IsNull() && !update.Replicas.IsUnknown() {
+		if replicasChanged {
 			opsBody.Replicas.Set(pointer.Int32(int32(update.Replicas.ValueInt64())))
 		}
-		if targetBackup != "" {
-			opsBody.BackupName.Set(pointer.String(targetBackup))
-		}
-
-		_, apiResp, err = kbcloud.NewOpsrequestApi(r.client.Client()).HorizontalScaleCluster(
-			r.client.Ctx(),
-			data.OrgName.ValueString(),
-			data.Name.ValueString(),
-			opsBody,
-		)
+		apiResp, err = executeScale(opsBody)
 	}
 
 	if err != nil {
@@ -1051,89 +1067,60 @@ func (r *ClusterResource) doHscale(oldComponents []admin.ComponentItem, data *my
 func (r *ClusterResource) doVolumeExpand(oldComponents []admin.ComponentItem, data *mytypes.ClustersResourceModel, update *mytypes.ComponentsResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
+	expandVolumes := make([]admin.OpsVolumeExpandVolumesItem, 0)
+	for _, c := range oldComponents {
+		if pointer.ValueOf(c.Component) != update.Component.ValueString() {
+			continue
+		}
+
+		var updateVolumes []*mytypes.VolumesResourceModel
+		if !update.Volumes.IsNull() && !update.Volumes.IsUnknown() {
+			diags.Append(update.Volumes.ElementsAs(context.Background(), &updateVolumes, false)...)
+			if diags.HasError() {
+				return diags
+			}
+		}
+
+		for _, v := range c.Volumes {
+			for _, u := range updateVolumes {
+				if pointer.ValueOf(v.Name) == u.Name.ValueString() && u.Storage.ValueFloat64() > pointer.ValueOf(v.Storage) {
+					expandVolumes = append(expandVolumes, admin.OpsVolumeExpandVolumesItem{
+						Name:    pointer.ValueOf(v.Name),
+						Storage: fmt.Sprintf("%dGi", cast.ToInt(u.Storage.ValueFloat64())),
+					})
+				}
+			}
+		}
+	}
+
+	if len(expandVolumes) == 0 {
+		return diags
+	}
+
 	var apiResp *http.Response
 	var err error
 
+	opsBody := admin.OpsVolumeExpand{
+		Component: update.Component.ValueString(),
+		Volumes:   expandVolumes,
+	}
+
 	if r.client.IsAdminClient() {
-		expandVolumes := make([]admin.OpsVolumeExpandVolumesItem, 0)
-		for _, c := range oldComponents {
-			if pointer.ValueOf(c.Component) != update.Component.ValueString() {
-				continue
-			}
-
-			var updateVolumes []*mytypes.VolumesResourceModel
-			if !update.Volumes.IsNull() && !update.Volumes.IsUnknown() {
-				diags.Append(update.Volumes.ElementsAs(context.Background(), &updateVolumes, false)...)
-				if diags.HasError() {
-					return diags
-				}
-			}
-
-			for _, v := range c.Volumes {
-				for _, u := range updateVolumes {
-					if pointer.ValueOf(v.Name) == u.Name.ValueString() && u.Storage.ValueFloat64() > pointer.ValueOf(v.Storage) {
-						expandVolumes = append(expandVolumes, admin.OpsVolumeExpandVolumesItem{
-							Name:    pointer.ValueOf(v.Name),
-							Storage: fmt.Sprintf("%dGi", cast.ToInt(u.Storage.ValueFloat64())),
-						})
-					}
-				}
-			}
-		}
-
-		if len(expandVolumes) == 0 {
-			return diags
-		}
-
 		_, apiResp, err = admin.NewOpsrequestApi(r.client.AdminClient()).ClusterVolumeExpand(
 			r.client.AdminCtx(),
 			data.OrgName.ValueString(),
 			data.Name.ValueString(),
-			admin.OpsVolumeExpand{
-				Component: update.Component.ValueString(),
-				Volumes:   expandVolumes,
-			},
+			opsBody,
 		)
-
 	} else {
-		expandVolumes := make([]kbcloud.OpsVolumeExpandVolumesItem, 0)
-		for _, c := range oldComponents {
-			if pointer.ValueOf(c.Component) != update.Component.ValueString() {
-				continue
-			}
-
-			var updateVolumes []*mytypes.VolumesResourceModel
-			if !update.Volumes.IsNull() && !update.Volumes.IsUnknown() {
-				diags.Append(update.Volumes.ElementsAs(context.Background(), &updateVolumes, false)...)
-				if diags.HasError() {
-					return diags
-				}
-			}
-
-			for _, v := range c.Volumes {
-				for _, u := range updateVolumes {
-					if pointer.ValueOf(v.Name) == u.Name.ValueString() && u.Storage.ValueFloat64() > pointer.ValueOf(v.Storage) {
-						expandVolumes = append(expandVolumes, kbcloud.OpsVolumeExpandVolumesItem{
-							Name:    pointer.ValueOf(v.Name),
-							Storage: fmt.Sprintf("%dGi", cast.ToInt(u.Storage.ValueFloat64())),
-						})
-					}
-				}
-			}
-		}
-
-		if len(expandVolumes) == 0 {
-			return diags
-		}
-
+		var kbBody kbcloud.OpsVolumeExpand
+		b, _ := json.Marshal(opsBody)
+		_ = json.Unmarshal(b, &kbBody)
 		_, apiResp, err = kbcloud.NewOpsrequestApi(r.client.Client()).ClusterVolumeExpand(
 			r.client.Ctx(),
 			data.OrgName.ValueString(),
 			data.Name.ValueString(),
-			kbcloud.OpsVolumeExpand{
-				Component: update.Component.ValueString(),
-				Volumes:   expandVolumes,
-			},
+			kbBody,
 		)
 	}
 

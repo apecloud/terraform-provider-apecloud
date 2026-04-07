@@ -27,7 +27,6 @@ website/node_modules
 *.iml
 *.txt
 *.json
-*.tf
 
 .vscode/
 website/vendor
