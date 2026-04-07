@@ -1,0 +1,326 @@
+{%- macro importPackages(need_basetypes=True) %}
+import (
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+)
+{%- endmacro %}
+
+{%- macro primitiveTypeProperty(name, type) %}
+{%- set varName = name|camel_case %}
+{{ varName }} types.{{ type }} `tfsdk:"{{ name | snake_case }}"`
+{%- endmacro %}
+
+{%- macro nonPrimitiveTypeProperty(name, array=False, suffix="Model") %}
+{%- set varName = name|camel_case %}
+{%- if array %}
+{{ varName }} types.List `tfsdk:"{{ name | snake_case }}"`
+{%- else %}
+{{ varName }} types.Object `tfsdk:"{{ name | snake_case }}"`
+{%- endif %}
+{%- endmacro %}
+
+{%- macro basePropertyTypeBuilder(name, schema, suffix="Model") %}
+{%- if schema.get("type") == "array" %}
+{{- basePropertyTypeBuilderHelper(name, schema.get("items"), suffix) }}
+{% else %}
+{{- basePropertyTypeBuilderHelper(name, schema, suffix) }}
+{%- endif %}
+{%- endmacro %}
+
+{%- macro basePropertyTypeBuilderHelper(name, schema, suffix="Model") %}
+{%- if not model_already_generated(name + suffix) %}
+{%- set primitiveAttr, primitiveArrAttr, nonPrimitiveListAttr, nonPrimitiveObjAttr = schema|tf_sort_properties_by_type %}
+{%- set varName = name|camel_case %}
+type {{ name|camel_case }}{{ suffix }} struct {
+    {%- for attr_name, attr_schema in primitiveAttr.items() %}
+    {{- primitiveTypeProperty(attr_name, get_terraform_schema_type(attr_schema)) }}
+    {%- endfor %}
+
+    {%- for attr_name, attr_schema in primitiveArrAttr.items() %}
+    {{- primitiveTypeProperty(attr_name, get_terraform_schema_type(attr_schema)) }}
+    {%- endfor %}
+
+    {%- for attr_name, attr_schema in nonPrimitiveListAttr.items() %}
+    {{- nonPrimitiveTypeProperty(attr_name, array=True, suffix=suffix) }}
+    {%- endfor %}
+
+    {%- for attr_name, attr_schema in nonPrimitiveObjAttr.items() %}
+    {{- nonPrimitiveTypeProperty(attr_name, suffix=suffix) }}
+    {%- endfor %}
+}
+
+func (v {{ name|camel_case }}{{ suffix }}) AttributeTypes() map[string]attr.Type {
+	return map[string]attr.Type{
+    {%- for attr_name, attr_schema in primitiveAttr.items() %}
+    {%- if get_terraform_schema_type(attr_schema) == 'Dynamic' %}
+        "{{ attr_name | snake_case }}": types.DynamicType,
+    {%- elif get_terraform_schema_type(attr_schema) == 'Map' %}
+        "{{ attr_name | snake_case }}": types.MapType{ElemType: types.StringType},
+    {%- else %}
+        "{{ attr_name | snake_case }}": types.{{ get_terraform_schema_type(attr_schema) }}Type,
+    {%- endif %}
+    {%- endfor %}
+    {%- for attr_name, attr_schema in primitiveArrAttr.items() %}
+        "{{ attr_name | snake_case }}": types.ListType{ElemType: types.StringType},
+    {%- endfor %}
+    {%- for attr_name, attr_schema in nonPrimitiveListAttr.items() %}
+        "{{ attr_name | snake_case }}": types.ListType{ElemType: types.ObjectType{AttrTypes: {{ attr_name|camel_case }}{{ suffix }}{}.AttributeTypes()}},
+    {%- endfor %}
+    {%- for attr_name, attr_schema in nonPrimitiveObjAttr.items() %}
+        "{{ attr_name | snake_case }}": types.ObjectType{AttrTypes: {{ attr_name|camel_case }}{{ suffix }}{}.AttributeTypes()},
+    {%- endfor %}
+	}
+}
+
+{{ refreshFromAPI(name, schema, suffix) }}
+
+{{ mergeFromRemote(name, schema, suffix) }}
+
+{%- if nonPrimitiveListAttr %}
+{%- for attr_name, attr_schema in nonPrimitiveListAttr.items() %}
+{{- basePropertyTypeBuilder(attr_name, attr_schema, suffix) }}
+{%- endfor %}
+{%- endif %}
+
+{%- if nonPrimitiveObjAttr %}
+{%- for attr_name, attr_schema in nonPrimitiveObjAttr.items() %}
+{{- basePropertyTypeBuilder(attr_name, attr_schema, suffix) }}
+{%- endfor %}
+{%- endif %}
+
+{%- endif %}
+{%- endmacro %}
+
+{%- macro refreshFromAPI(name, schema, suffix="Model", is_params=False) %}
+{%- if is_params %}
+{%- set primitiveAttr, primitiveArrAttr, nonPrimitiveListAttr, nonPrimitiveObjAttr = schema|tf_sort_params_by_type %}
+{%- else %}
+{%- set primitiveAttr, primitiveArrAttr, nonPrimitiveListAttr, nonPrimitiveObjAttr = schema|tf_sort_properties_by_type %}
+{%- endif %}
+func (m *{{ name|camel_case }}{{ suffix }}) RefreshFromAPI(ctx context.Context, apiData map[string]interface{}) diag.Diagnostics {
+var diags diag.Diagnostics
+
+    {%- for attr_name, attr_schema in primitiveAttr.items() %}
+    {%- if attr_schema.get('x-terraform-ignore-update', False) and suffix == "ResourceModel" %}
+    // skip updating {{ attr_name }}
+    {%- else %}
+    {%- set varName = attr_name|camel_case %}
+    {%- set camelCaseName = attr_name %}
+    {%- set type = get_terraform_schema_type(attr_schema) %}
+    if val, ok := apiData["{{ camelCaseName }}"]; ok && val != nil {
+        {%- if type == 'String' %}
+        m.{{ varName }} = types.StringValue(val.(string))
+        {%- elif type == 'Int64' %}
+        m.{{ varName }} = types.Int64Value(int64(val.(float64)))
+        {%- elif type == 'Float64' %}
+        m.{{ varName }} = types.Float64Value(val.(float64))
+        {%- elif type == 'Bool' %}
+        m.{{ varName }} = types.BoolValue(val.(bool))
+        {%- elif type == 'Map' %}
+        mapValues := make(map[string]attr.Value)
+        for k, v := range val.(map[string]interface{}) {
+            mapValues[k] = types.StringValue(v.(string))
+        }
+        m.{{ varName }}, _ = types.MapValue(types.StringType, mapValues)
+        {%- elif type == 'Dynamic' %}
+        // Keep original value if it is valid, otherwise set null
+        if m.{{ varName }}.IsUnknown() {
+            m.{{ varName }} = basetypes.NewDynamicNull()
+        }
+        {%- elif type == 'List' %}
+        m.{{ varName }} = types.ListNull(types.StringType)
+        {%- else %}
+        m.{{ varName }} = types.{{ type }}Null()
+        {%- endif %}
+    } else {
+        {%- if type == 'Dynamic' %}
+        if m.{{ varName }}.IsUnknown() {
+            m.{{ varName }} = basetypes.NewDynamicNull()
+        }
+        {%- elif type == 'Map' %}
+        m.{{ varName }} = types.MapNull(types.StringType)
+        {%- elif type == 'List' %}
+        m.{{ varName }} = types.ListNull(types.StringType)
+        {%- else %}
+        m.{{ varName }} = types.{{ type }}Null()
+        {%- endif %}
+    }
+    {%- endif %}
+    {%- endfor %}
+
+    {%- for attr_name, attr_schema in primitiveArrAttr.items() %}
+    {%- if attr_schema.get('x-terraform-ignore-update', False) and suffix == "ResourceModel" %}
+    // skip updating {{ attr_name }}
+    {%- else %}
+    {%- set varName = attr_name|camel_case %}
+    {%- set camelCaseName = attr_name %}
+    {%- set elem_type = get_terraform_schema_type(attr_schema.get("items", {})) %}
+    if val, ok := apiData["{{ camelCaseName }}"]; ok && val != nil {
+        var items []attr.Value
+        for _, item := range val.([]interface{}) {
+            {%- if elem_type == 'String' %}
+            items = append(items, types.StringValue(item.(string)))
+            {%- elif elem_type == 'Int64' %}
+            items = append(items, types.Int64Value(int64(item.(float64))))
+            {%- elif elem_type == 'Float64' %}
+            items = append(items, types.Float64Value(item.(float64)))
+            {%- elif elem_type == 'Bool' %}
+            items = append(items, types.BoolValue(item.(bool)))
+            {%- endif %}
+        }
+        list, d := types.ListValue(types.{{ elem_type }}Type, items)
+        diags.Append(d...)
+        m.{{ varName }} = list
+    } else {
+        m.{{ varName }} = types.ListNull(types.{{ elem_type }}Type)
+    }
+    {%- endif %}
+    {%- endfor %}
+
+    {%- for attr_name, attr_schema in nonPrimitiveObjAttr.items() %}
+    {%- if attr_schema.get('x-terraform-ignore-update', False) and suffix == "ResourceModel" %}
+    // skip updating {{ attr_name }}
+    {%- else %}
+    {%- set varName = attr_name|camel_case %}
+    {%- set camelCaseName = attr_name %}
+    if val, ok := apiData["{{ camelCaseName }}"]; ok && val != nil {
+        objMap := val.(map[string]interface{})
+        var objModel {{ attr_name|camel_case }}{{ suffix }}
+        if !m.{{ varName }}.IsNull() && !m.{{ varName }}.IsUnknown() {
+            m.{{ varName }}.As(ctx, &objModel, basetypes.ObjectAsOptions{})
+        }
+        d := objModel.RefreshFromAPI(ctx, objMap)
+        diags.Append(d...)
+        obj, d := types.ObjectValueFrom(ctx, objModel.AttributeTypes(), objModel)
+        diags.Append(d...)
+        m.{{ varName }} = obj
+    } else {
+        m.{{ varName }} = types.ObjectNull({{ attr_name|camel_case }}{{ suffix }}{}.AttributeTypes())
+    }
+    {%- endif %}
+    {%- endfor %}
+
+    {%- for attr_name, attr_schema in nonPrimitiveListAttr.items() %}
+    {%- if attr_schema.get('x-terraform-ignore-update', False) and suffix == "ResourceModel" %}
+    // skip updating {{ attr_name }}
+    {%- else %}
+    {%- set varName = attr_name|camel_case %}
+    {%- set camelCaseName = attr_name %}
+    if val, ok := apiData["{{ camelCaseName }}"]; ok && val != nil {
+        var items []attr.Value
+        var oldElements []{{ attr_name|camel_case }}{{ suffix }}
+        if !m.{{ varName }}.IsNull() && !m.{{ varName }}.IsUnknown() {
+            m.{{ varName }}.ElementsAs(ctx, &oldElements, false)
+        }
+        for i, item := range val.([]interface{}) {
+            objMap := item.(map[string]interface{})
+            var objModel {{ attr_name|camel_case }}{{ suffix }}
+            if i < len(oldElements) {
+                objModel = oldElements[i]
+            }
+            d := objModel.RefreshFromAPI(ctx, objMap)
+            diags.Append(d...)
+            obj, d := types.ObjectValueFrom(ctx, objModel.AttributeTypes(), objModel)
+            diags.Append(d...)
+            items = append(items, obj)
+        }
+        list, d := types.ListValue(types.ObjectType{AttrTypes: {{ attr_name|camel_case }}{{ suffix }}{}.AttributeTypes()}, items)
+        diags.Append(d...)
+        m.{{ varName }} = list
+    } else {
+        m.{{ varName }} = types.ListNull(types.ObjectType{AttrTypes: {{ attr_name|camel_case }}{{ suffix }}{}.AttributeTypes()})
+    }
+    {%- endif %}
+    {%- endfor %}
+
+return diags
+}
+{%- endmacro %}
+
+{%- macro mergeFromRemote(name, schema, suffix="Model", is_params=False) %}
+{%- if is_params %}
+{%- set primitiveAttr, primitiveArrAttr, nonPrimitiveListAttr, nonPrimitiveObjAttr = schema|tf_sort_params_by_type %}
+{%- else %}
+{%- set primitiveAttr, primitiveArrAttr, nonPrimitiveListAttr, nonPrimitiveObjAttr = schema|tf_sort_properties_by_type %}
+{%- endif %}
+func (m *{{ name|camel_case }}{{ suffix }}) Merge(remote *{{ name|camel_case }}{{ suffix }}) {
+    {%- for attr_name, attr_schema in primitiveAttr.items() %}
+    {%- set varName = attr_name|camel_case %}
+    if m.{{ varName }}.IsNull() || m.{{ varName }}.IsUnknown() {
+        m.{{ varName }} = remote.{{ varName }}
+    }
+    {%- endfor %}
+
+    {%- for attr_name, attr_schema in primitiveArrAttr.items() %}
+    {%- set varName = attr_name|camel_case %}
+    if m.{{ varName }}.IsNull() || m.{{ varName }}.IsUnknown() {
+        m.{{ varName }} = remote.{{ varName }}
+    }
+    {%- endfor %}
+
+    {%- for attr_name, attr_schema in nonPrimitiveObjAttr.items() %}
+    {%- set varName = attr_name|camel_case %}
+    if m.{{ varName }}.IsNull() || m.{{ varName }}.IsUnknown() {
+        m.{{ varName }} = remote.{{ varName }}
+    } else {
+        var localObj {{ attr_name|camel_case }}{{ suffix }}
+        var remoteObj {{ attr_name|camel_case }}{{ suffix }}
+        if !m.{{ varName }}.IsNull() && !m.{{ varName }}.IsUnknown() {
+            m.{{ varName }}.As(context.Background(), &localObj, basetypes.ObjectAsOptions{})
+        }
+        if !remote.{{ varName }}.IsNull() && !remote.{{ varName }}.IsUnknown() {
+            remote.{{ varName }}.As(context.Background(), &remoteObj, basetypes.ObjectAsOptions{})
+        }
+        localObj.Merge(&remoteObj)
+        obj, diags := types.ObjectValueFrom(context.Background(), localObj.AttributeTypes(), localObj)
+        if !diags.HasError() {
+            m.{{ varName }} = obj
+        }
+    }
+    {%- endfor %}
+
+    {%- for attr_name, attr_schema in nonPrimitiveListAttr.items() %}
+    {%- set varName = attr_name|camel_case %}
+    if m.{{ varName }}.IsNull() || m.{{ varName }}.IsUnknown() {
+        m.{{ varName }} = remote.{{ varName }}
+    } else {
+        var localList []{{ attr_name|camel_case }}{{ suffix }}
+        var remoteList []{{ attr_name|camel_case }}{{ suffix }}
+        if !m.{{ varName }}.IsNull() && !m.{{ varName }}.IsUnknown() {
+            m.{{ varName }}.ElementsAs(context.Background(), &localList, false)
+        }
+        if !remote.{{ varName }}.IsNull() && !remote.{{ varName }}.IsUnknown() {
+            remote.{{ varName }}.ElementsAs(context.Background(), &remoteList, false)
+        }
+        
+        var mergedList []attr.Value
+        // Iterate through remote items to preserve server-generated items
+        for i, remoteItem := range remoteList {
+            if i < len(localList) {
+                // If local has this item, merge remote into local
+                localList[i].Merge(&remoteItem)
+                obj, diags := types.ObjectValueFrom(context.Background(), localList[i].AttributeTypes(), localList[i])
+                if !diags.HasError() {
+                    mergedList = append(mergedList, obj)
+                }
+            } else {
+                // If local doesn't have it (e.g. server added it), append remote item
+                obj, diags := types.ObjectValueFrom(context.Background(), remoteItem.AttributeTypes(), remoteItem)
+                if !diags.HasError() {
+                    mergedList = append(mergedList, obj)
+                }
+            }
+        }
+        
+        list, diags := types.ListValue(types.ObjectType{AttrTypes: {{ attr_name|camel_case }}{{ suffix }}{}.AttributeTypes()}, mergedList)
+        if !diags.HasError() {
+            m.{{ varName }} = list
+        }
+    }
+    {%- endfor %}
+}
+{%- endmacro %}

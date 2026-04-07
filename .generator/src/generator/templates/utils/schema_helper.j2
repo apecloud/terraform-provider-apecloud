@@ -1,0 +1,64 @@
+{%- macro schemaPropertyBuilder(name, schema, force_computed=False, is_request=False, parent_schema=None, is_datasource=False) %}
+{%- set is_req = is_request and (schema.get('required', False) or (parent_schema is not none and is_required(name, parent_schema))) %}
+{%- set is_opt = is_request and not is_req %}
+{%- set force_computed = force_computed or schema.get('x-terraform-force-computed', False) %}
+{%- set ignore_update = schema.get('x-terraform-ignore-update', False) and not is_datasource %}
+{%- set is_comp = (force_computed or not is_request or is_opt) and not ignore_update %}
+{%- set tf_type = get_terraform_schema_type(schema) %}
+{%- set desc = schema.get('description', '') | replace('\n', ' ') | replace('"', '\\"') %}
+
+"{{ name | snake_case }}": schema.
+{%- if schema.get("x-terraform-type") == "dynamic" or schema.get("x-terraform-recursion") -%}
+    DynamicAttribute{
+{%- elif schema.get("type") == "array" -%}
+    {%- set items_schema = schema.get("items", {}) -%}
+    {%- if items_schema|is_primitive -%}
+        ListAttribute{
+            ElementType: types.{{ get_terraform_schema_type(items_schema) }}Type,
+    {%- else -%}
+        ListNestedAttribute{
+            NestedObject: schema.NestedAttributeObject{
+                Attributes: map[string]schema.Attribute{
+                    {%- for attr_name, attr_schema in items_schema.get("properties", {}).items() %}
+                    {{ schemaPropertyBuilder(attr_name, attr_schema, force_computed, is_request, items_schema, is_datasource) }}
+                    {%- endfor %}
+                },
+            },
+    {%- endif -%}
+{%- elif schema.get("type", "object") == "object" -%}
+    {%- if not schema.get("properties") -%}
+        {%- if schema.get("additionalProperties") -%}
+            {%- if schema.get("additionalProperties") is mapping and schema["additionalProperties"].get("type") == "string" %}
+        MapAttribute{
+            ElementType: types.StringType,
+            {%- else %}
+        DynamicAttribute{
+            {%- endif %}
+        {%- else -%}
+        DynamicAttribute{
+        {%- endif -%}
+    {%- else -%}
+        SingleNestedAttribute{
+            Attributes: map[string]schema.Attribute{
+                {%- for attr_name, attr_schema in schema.get("properties", {}).items() %}
+                {{ schemaPropertyBuilder(attr_name, attr_schema, force_computed, is_request, schema, is_datasource) }}
+                {%- endfor %}
+            },
+    {%- endif -%}
+{%- else -%}
+    {{ tf_type }}Attribute{
+{%- endif -%}
+        {%- if is_comp %}
+        Computed: true,
+        {%- endif %}
+        {%- if is_opt and not force_computed %}
+        Optional: true,
+        {%- endif %}
+        {%- if is_req and not force_computed %}
+        Required: true,
+        {%- endif %}
+        {%- if desc %}
+        Description: "{{ desc }}",
+        {%- endif %}
+    },
+{%- endmacro %}

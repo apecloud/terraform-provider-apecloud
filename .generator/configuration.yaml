@@ -1,0 +1,25 @@
+resources:
+  clusters:
+    read:
+      method: get
+      path: /admin/v1/organizations/{orgName}/clusters/{clusterName}
+    create:
+      method: post
+      path: /admin/v1/organizations/{orgName}/clusters
+    update:
+      method: patch
+      path: /admin/v1/organizations/{orgName}/clusters/{clusterName}
+    delete:
+      method: delete
+      path: /admin/v1/organizations/{orgName}/clusters/{clusterName}
+  backups:
+    create:
+      method: post
+      path: /admin/v1/organizations/{orgName}/clusters/{clusterName}/backups
+
+datasources:
+  clusters:
+    singular: /admin/v1/organizations/{orgName}/clusters/{clusterName}
+    plural: /admin/v1/organizations/{orgName}/clusters
+  backups:
+    singular: /admin/v1/organizations/{orgName}/backups/{backupId}

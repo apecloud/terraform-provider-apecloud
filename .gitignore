@@ -1,0 +1,54 @@
+.env
+*.dll
+*.exe
+.DS_Store
+example.tf
+terraform.tfplan
+terraform.tfstate
+bin/
+dist/
+modules-dev/
+/pkg/
+website/.vagrant
+website/.bundle
+website/build
+website/node_modules
+.vagrant/
+*.backup
+./*.tfstate
+.terraform/
+*.log
+*.bak
+*~
+.*.swp
+.idea
+*.iml
+*.test
+*.iml
+*.txt
+*.json
+*.tf
+
+.vscode/
+website/vendor
+
+.generator_data-dog/
+
+__debug_bin*
+terraform-provider-apecloud
+
+# Test exclusions
+!command/test-fixtures/**/*.tfstate
+!command/test-fixtures/**/.terraform/
+
+# python
+*.pyc
+
+# Claude for individual users
+CLAUDE.local.md
+
+# Trae IDE
+.trae/
+
+# envrc
+.envrc
