@@ -59,7 +59,8 @@ goimports: goimportstool ## Run goimports against code.
 .PHONY: build
 generate build: ## Build the terraform provider executable.
 	@echo "Building terraform-provider-apecloud..."
-	@go build -o terraform-provider-apecloud .
+	@mkdir -p cmd
+	@go build -o cmd/terraform-provider-apecloud .
 	@echo "Build completed."
 
 .PHONY: generate
@@ -68,3 +69,19 @@ generate: ## Run Python generator to create terraform models and schemas.
 	@cd .generator/src && PYTHONPATH=. python -m generator.cli ../specs/adminapi-bundle-tmp.yaml ../configuration.yaml
 	@echo "Generation completed."
 	@goimports -w ./internal/types/ ./internal/resource/ ./internal/datasource/
+
+.PHONY: tfplugindocs
+tfplugindocs: ## Install tfplugindocs into cmd directory.
+	@if [ ! -f "cmd/tfplugindocs" ]; then \
+		echo "Installing tfplugindocs into cmd/ ..."; \
+		mkdir -p cmd; \
+		GOBIN=$(shell pwd)/cmd GOPROXY=https://goproxy.cn,direct go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.19.4; \
+	else \
+		echo "tfplugindocs already exists in cmd/ , skipping installation."; \
+	fi
+
+.PHONY: docs
+docs: tfplugindocs ## Generate Terraform Provider documentation using tfplugindocs.
+	@echo "Generating Terraform Provider documentation..."
+	@./cmd/tfplugindocs
+	@echo "Documentation generation completed."

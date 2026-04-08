@@ -64,28 +64,28 @@ func (a *KubeBlockEnterpriseProvider) Schema(_ context.Context, _ provider.Schem
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"api_key": schema.StringAttribute{
-				Description: "The organization-level API key to use for requests to KubeBlocks Enterprise.",
+				Description: "The organization-level API key to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the admin-level API key.",
 				Sensitive:   true,
 				Optional:    true,
 			},
 			"api_secret": schema.StringAttribute{
-				Description: "The organization-level API secret to use for requests to KubeBlocks Enterprise.",
+				Description: "The organization-level API secret to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the admin-level API secret.",
 				Sensitive:   true,
 				Optional:    true,
 			},
 			"admin_api_key": schema.StringAttribute{
-				Description: "The admin-level API key to use for requests to KubeBlocks Enterprise.",
+				Description: "The admin-level API key to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the organization-level API key.",
 				Sensitive:   true,
 				Optional:    true,
 			},
 			"admin_api_secret": schema.StringAttribute{
-				Description: "The admin-level API secret to use for requests to KubeBlocks Enterprise.",
+				Description: "The admin-level API secret to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the organization-level API secret.",
 				Sensitive:   true,
 				Optional:    true,
 			},
 			"api_url": schema.StringAttribute{
-				Description: "The API URL",
-				Optional:    true,
+				Description: "The API URL of KubeBlocks Enterprise.",
+				Required:    true,
 			},
 			"http_client_retry_enabled": schema.StringAttribute{
 				Optional:    true,
