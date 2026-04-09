@@ -3,12 +3,12 @@
 page_title: "kbcloud Provider"
 subcategory: ""
 description: |-
-  
+  This is the official Terraform Provider for KubeBlocks Enterprise, allowing you to manage KubeBlocks clusters, backups, and other Enterprise resources via infrastructure as code.
 ---
 
 # kbcloud Provider
 
-
+This is the official Terraform Provider for KubeBlocks Enterprise, allowing you to manage KubeBlocks clusters, backups, and other Enterprise resources via infrastructure as code.
 
 
 
@@ -21,10 +21,10 @@ description: |-
 
 ### Optional
 
-- `admin_api_key` (String, Sensitive) The admin-level API key to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the organization-level API key.
-- `admin_api_secret` (String, Sensitive) The admin-level API secret to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the organization-level API secret.
-- `api_key` (String, Sensitive) The organization-level API key to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the admin-level API key.
-- `api_secret` (String, Sensitive) The organization-level API secret to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the admin-level API secret.
+- `admin_api_key` (String, Sensitive) The admin-level API key to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the organization-level API key. If both are provided, the admin-level API key will be used.
+- `admin_api_secret` (String, Sensitive) The admin-level API secret to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the organization-level API secret. If both are provided, the admin-level API secret will be used.
+- `api_key` (String, Sensitive) The organization-level API key to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the admin-level API key. If both are provided, the admin-level API key will be used.
+- `api_secret` (String, Sensitive) The organization-level API secret to use for requests to KubeBlocks Enterprise. If not provided, the provider will use the admin-level API secret. If both are provided, the admin-level API secret will be used.
 - `http_client_retry_backoff_base` (Number) The HTTP request retry back off base. Defaults to 2.
 - `http_client_retry_backoff_multiplier` (Number) The HTTP request retry back off multiplier. Defaults to 2.
 - `http_client_retry_enabled` (String) Enables request retries on HTTP status codes 429 and 5xx. Valid values are [`true`, `false`]. Defaults to `true`.
