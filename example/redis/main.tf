@@ -7,7 +7,7 @@ terraform {
 }
 
 provider "kbcloud" {
-  api_url = "https://api-dev.apecloud.cn"
+  api_url = "https://kb-cloud-apiserver-endpoint.com/api"
 
   api_key    = "your_api_key"
   api_secret = "your_api_secret"

@@ -7,24 +7,17 @@ terraform {
 }
 
 provider "kbcloud" {
-  # api_url        = "https://api-dev.apecloud.cn"
-  api_url = "https://api-dev.apecloud.cn"
-  #   api_url        = "http://127.0.0.1:8080"
+  api_url = "https://kb-cloud-apiserver-endpoint.com/api"
 
-  # api_key        = "your_api_key"
-  # api_secret     = "your_api_secret"
+  api_key    = "your_api_key"
+  api_secret = "your_api_secret"
 
-  # admin_api_key  = "your_admin_api_key"
-  # admin_api_secret = "your_admin_api_secret"
-  api_key    = "67a58b4e-c734-44f8-aa14-b8a6e4fe233d"
-  api_secret = "696f77746b716d6a6475626a63766e6d646c7a65796d776a72746a6967747271"
+  admin_api_key    = "your_admin_api_key"
+  admin_api_secret = "your_admin_api_secret"
 
-  # admin_api_key  = "e06e6996-1afa-4ab4-8ed7-82a85747a1e3"
-  # admin_api_secret = "6e70686872737663676470727773727463747164656e6e6b626f7a786c726b7a"
   # if you need to skip verify, please set https_skip_verify = true
   # https_skip_verify = true
 }
-
 resource "kbcloud_cluster" "my_mssql" {
   name             = "my-mssql-cluster"
   display_name     = "my-mssql-cluster"
