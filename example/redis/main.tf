@@ -1,12 +1,12 @@
 terraform {
   required_providers {
-    apecloud = {
-      source = "registry.terraform.io/apecloud/apecloud"
+    kbcloud = {
+      source = "registry.terraform.io/apecloud/kbcloud"
     }
   }
 }
 
-provider "apecloud" {
+provider "kbcloud" {
   api_url = "https://api-dev.apecloud.cn"
 
   api_key    = "your_api_key"
@@ -19,7 +19,7 @@ provider "apecloud" {
   # https_skip_verify = true
 }
 
-resource "apecloud_cluster" "my_replication_redis" {
+resource "kbcloud_cluster" "my_replication_redis" {
   name             = "my-redis"
   display_name     = "my-redis"
   org_name         = "my-org"
@@ -85,7 +85,7 @@ resource "apecloud_cluster" "my_replication_redis" {
 }
 
 
-resource "apecloud_cluster" "my_cluster_redis" {
+resource "kbcloud_cluster" "my_cluster_redis" {
   name             = "my-cluster-redis"
   display_name     = "my-cluster-redis"
   org_name         = "my-org"
@@ -149,7 +149,7 @@ resource "apecloud_cluster" "my_cluster_redis" {
   }
 }
 
-resource "apecloud_cluster" "my_sentinel_redis" {
+resource "kbcloud_cluster" "my_sentinel_redis" {
   name             = "my-sentinel-redis"
   display_name     = "my-sentinel-redis"
   org_name         = "my-org"

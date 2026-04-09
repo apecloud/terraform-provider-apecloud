@@ -1,8 +1,8 @@
-# ApeCloud Terraform Provider Examples
+# KBCloud Terraform Provider Examples
 
-This directory contains example Terraform configurations for deploying various types of database and message queue clusters on ApeCloud/KubeBlocks. 
+This directory contains example Terraform configurations for deploying various types of database and message queue clusters on KubeBlocks Enterprise. 
 
-The configurations illustrate how to map ApeCloud/KubeBlocks concepts (such as Engines, Components, Volumes, Parameter Templates, and Backup Policies) to the `apecloud_cluster` Terraform resource.
+The configurations illustrate how to map KubeBlocks concepts (such as Components, Volumes, Parameter Templates, and Backup Policies) to the `kbcloud_cluster` Terraform resource.
 
 ## Supported Engines and Modes
 
@@ -17,7 +17,7 @@ Currently, the following examples are provided:
 
 ## KubeBlocks (KB) Cluster Operations via Terraform
 
-The `apecloud_cluster` resource translates standard Terraform lifecycle operations into KubeBlocks OpsRequest actions.
+The `kbcloud_cluster` resource translates standard Terraform lifecycle operations into KubeBlocks OpsRequest actions.
 
 ### 1. Provisioning a Cluster (`terraform apply`)
 

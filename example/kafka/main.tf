@@ -1,12 +1,12 @@
 terraform {
   required_providers {
-    apecloud = {
-      source = "registry.terraform.io/apecloud/apecloud"
+    kbcloud = {
+      source = "registry.terraform.io/apecloud/kbcloud"
     }
   }
 }
 
-provider "apecloud" {
+provider "kbcloud" {
   api_url = "https://api-dev.apecloud.cn"
 
   api_key    = "your_api_key"
@@ -20,7 +20,7 @@ provider "apecloud" {
 }
 
 
-resource "apecloud_cluster" "my_combined_kafka" {
+resource "kbcloud_cluster" "my_combined_kafka" {
   name             = "my-combined-kafka"
   display_name     = "my-combined-kafka"
   org_name         = "my-org"
@@ -96,7 +96,7 @@ resource "apecloud_cluster" "my_combined_kafka" {
 }
 
 
-resource "apecloud_cluster" "my_separated_kafka" {
+resource "kbcloud_cluster" "my_separated_kafka" {
   name             = "my-separated-kafka"
   display_name     = "my-separated-kafka"
   org_name         = "my-org"
@@ -178,7 +178,7 @@ resource "apecloud_cluster" "my_separated_kafka" {
 }
 
 
-resource "apecloud_cluster" "my_zookeeper_kafka" {
+resource "kbcloud_cluster" "my_zookeeper_kafka" {
   name             = "my-zookeeper-kafka"
   display_name     = "my-zookeeper-kafka"
   org_name         = "my-org"

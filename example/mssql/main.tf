@@ -1,12 +1,12 @@
 terraform {
   required_providers {
-    apecloud = {
-      source = "registry.terraform.io/apecloud/apecloud"
+    kbcloud = {
+      source = "registry.terraform.io/apecloud/kbcloud"
     }
   }
 }
 
-provider "apecloud" {
+provider "kbcloud" {
   # api_url        = "https://api-dev.apecloud.cn"
   api_url = "https://api-dev.apecloud.cn"
   #   api_url        = "http://127.0.0.1:8080"
@@ -25,7 +25,7 @@ provider "apecloud" {
   # https_skip_verify = true
 }
 
-resource "apecloud_cluster" "my_mssql" {
+resource "kbcloud_cluster" "my_mssql" {
   name             = "my-mssql-cluster"
   display_name     = "my-mssql-cluster"
   org_name         = "my-org"

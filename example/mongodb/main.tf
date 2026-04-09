@@ -1,12 +1,12 @@
 terraform {
   required_providers {
-    apecloud = {
-      source = "registry.terraform.io/apecloud/apecloud"
+    kbcloud = {
+      source = "registry.terraform.io/apecloud/kbcloud"
     }
   }
 }
 
-provider "apecloud" {
+provider "kbcloud" {
   api_url        = "https://api-dev.apecloud.cn"
 
   api_key        = "your_api_key"
@@ -20,7 +20,7 @@ provider "apecloud" {
 }
 
 
-resource "apecloud_cluster" "my_mongodb_sharding" {
+resource "kbcloud_cluster" "my_mongodb_sharding" {
   name             = "my-mongodb-sharding"
   display_name     = "my-mongodb-sharding"
   org_name         = "my-org"
@@ -120,7 +120,7 @@ resource "apecloud_cluster" "my_mongodb_sharding" {
   }
 }
 
-resource "apecloud_cluster" "my_mongodb_replicaset" {
+resource "kbcloud_cluster" "my_mongodb_replicaset" {
   name             = "my-mongodb-replicaset"
   display_name     = "my-mongodb-replicaset"
   org_name         = "my-org"
@@ -185,7 +185,7 @@ resource "apecloud_cluster" "my_mongodb_replicaset" {
 }
 
 
-resource "apecloud_cluster" "my_mongodb_standalone" {
+resource "kbcloud_cluster" "my_mongodb_standalone" {
   name             = "my-mongodb-standalone"
   display_name     = "my-mongodb-standalone"
   org_name         = "my-org"
