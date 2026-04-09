@@ -8,9 +8,9 @@ import (
 	"github.com/apecloud/kb-cloud-client-go/api/common"
 	"github.com/spf13/cast"
 
-	"github.com/apecloud/terraform-provider-apecloud/internal/constants"
-	"github.com/apecloud/terraform-provider-apecloud/internal/types"
-	"github.com/apecloud/terraform-provider-apecloud/internal/utils"
+	"github.com/apecloud/terraform-provider-kbcloud/internal/constants"
+	"github.com/apecloud/terraform-provider-kbcloud/internal/types"
+	"github.com/apecloud/terraform-provider-kbcloud/internal/utils"
 )
 
 // Client is the API client for the ApeCloud API.

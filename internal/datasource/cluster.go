@@ -6,8 +6,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 
-	"github.com/apecloud/terraform-provider-apecloud/internal/client"
-	mytypes "github.com/apecloud/terraform-provider-apecloud/internal/types"
+	"github.com/apecloud/terraform-provider-kbcloud/internal/client"
+	mytypes "github.com/apecloud/terraform-provider-kbcloud/internal/types"
 )
 
 type ClusterDataSource struct {
@@ -19,7 +19,7 @@ func NewClusterDataSource() datasource.DataSource {
 }
 
 func (d *ClusterDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_cluster"
+	resp.TypeName = req.ProviderTypeName + "_clusters"
 }
 
 func (d *ClusterDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {

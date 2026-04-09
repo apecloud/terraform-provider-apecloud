@@ -20,10 +20,10 @@ import (
 	"github.com/apecloud/kb-cloud-client-go/api/kbcloud"
 	"github.com/apecloud/kb-cloud-client-go/api/kbcloud/admin"
 
-	"github.com/apecloud/terraform-provider-apecloud/internal/client"
-	mytypes "github.com/apecloud/terraform-provider-apecloud/internal/types"
-	"github.com/apecloud/terraform-provider-apecloud/internal/utils"
-	"github.com/apecloud/terraform-provider-apecloud/internal/utils/pointer"
+	"github.com/apecloud/terraform-provider-kbcloud/internal/client"
+	mytypes "github.com/apecloud/terraform-provider-kbcloud/internal/types"
+	"github.com/apecloud/terraform-provider-kbcloud/internal/utils"
+	"github.com/apecloud/terraform-provider-kbcloud/internal/utils/pointer"
 )
 
 type ClusterResource struct {

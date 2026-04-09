@@ -49,18 +49,18 @@ module: ## Run go mod tidy->verify against go modules.
 
 .PHONY: lint
 lint: module ## make build manifests
-	@ echo -e "\033[1;32mgolangci-lint terraform-provider-apecloud...\033[0m"; \
+	@ echo -e "\033[1;32mgolangci-lint terraform-provider-kbcloud...\033[0m"; \
 	$(MAKE) golangci-lint
 
 .PHONY: goimports
 goimports: goimportstool ## Run goimports against code.
-	$(GOIMPORTS) -local github.com/apecloud/terraform-provider-apecloud -w $$(git ls-files|grep "\.go$$")
+	$(GOIMPORTS) -local github.com/apecloud/terraform-provider-kbcloud -w $$(git ls-files|grep "\.go$$")
 
 .PHONY: build
 generate build: ## Build the terraform provider executable.
-	@echo "Building terraform-provider-apecloud..."
+	@echo "Building terraform-provider-kbcloud..."
 	@mkdir -p cmd
-	@go build -o cmd/terraform-provider-apecloud .
+	@go build -o cmd/terraform-provider-kbcloud .
 	@echo "Build completed."
 
 .PHONY: generate

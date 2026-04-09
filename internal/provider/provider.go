@@ -8,10 +8,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	tfresource "github.com/hashicorp/terraform-plugin-framework/resource"
 
-	"github.com/apecloud/terraform-provider-apecloud/internal/client"
-	ds "github.com/apecloud/terraform-provider-apecloud/internal/datasource"
-	res "github.com/apecloud/terraform-provider-apecloud/internal/resource"
-	"github.com/apecloud/terraform-provider-apecloud/internal/types"
+	"github.com/apecloud/terraform-provider-kbcloud/internal/client"
+	ds "github.com/apecloud/terraform-provider-kbcloud/internal/datasource"
+	res "github.com/apecloud/terraform-provider-kbcloud/internal/resource"
+	"github.com/apecloud/terraform-provider-kbcloud/internal/types"
 )
 
 type KubeBlockEnterpriseProvider struct {
@@ -45,7 +45,7 @@ func (p *KubeBlockEnterpriseProvider) Configure(ctx context.Context, req provide
 }
 
 func (a *KubeBlockEnterpriseProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "apecloud"
+	resp.TypeName = "kbcloud"
 }
 
 func (a *KubeBlockEnterpriseProvider) Resources(context.Context) []func() tfresource.Resource {

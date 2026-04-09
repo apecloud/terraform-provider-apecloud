@@ -31,15 +31,15 @@ builds:
       goarch: '386'
     - goos: windows
       goarch: arm
-  binary: '{{ .ProjectName }}_v{{ .Version }}'
+  binary: 'terraform-provider-kbcloud_v{{ .Version }}'
 archives:
 - format: zip
-  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+  name_template: 'terraform-provider-kbcloud_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 checksum:
   extra_files:
     - glob: 'terraform-registry-manifest.json'
-      name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
-  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+      name_template: 'terraform-provider-kbcloud_{{ .Version }}_manifest.json'
+  name_template: 'terraform-provider-kbcloud_{{ .Version }}_SHA256SUMS'
   algorithm: sha256
 signs:
   - artifacts: checksum

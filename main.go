@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 
-	"github.com/apecloud/terraform-provider-apecloud/internal/provider"
+	"github.com/apecloud/terraform-provider-kbcloud/internal/provider"
 )
 
 func main() {
@@ -15,7 +15,7 @@ func main() {
 	flag.BoolVar(&debugMode, "debug", false, "set to true to run the provider with support for debuggers like delve")
 	flag.Parse()
 	err := providerserver.Serve(context.Background(), provider.New, providerserver.ServeOpts{
-		Address: "registry.terraform.io/apecloud/apecloud",
+		Address: "registry.terraform.io/apecloud/kbcloud",
 		Debug:   debugMode,
 	})
 	if err != nil {
